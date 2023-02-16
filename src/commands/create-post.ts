@@ -1,5 +1,6 @@
 import { Command } from '@boostercloud/framework-core'
 import { Register, UUID } from '@boostercloud/framework-types'
+import { PostCreated } from '../events/post-created'
 
 @Command({
   authorize: 'all'// Specify authorized roles here. Use 'all' to authorize anyone
@@ -13,6 +14,6 @@ export class CreatePost {
   ) {}
 
   public static async handle(command: CreatePost , register: Register): Promise<void> {
-    register.events( /* YOUR EVENT HERE */)
+    register.events(new PostCreated(command.postId, command.title, command.content, command.author))
   }
 }
