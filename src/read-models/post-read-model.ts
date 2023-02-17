@@ -3,7 +3,7 @@ import { UUID, ProjectionResult } from '@boostercloud/framework-types'
 import { Post } from '../entities/post'
 
 @ReadModel({
-  authorize: // Specify authorized roles here. Use 'all' to authorize anyone
+  authorize: 'all'// Specify authorized roles here. Use 'all' to authorize anyone
 })
 export class PostReadModel {
   public constructor(
