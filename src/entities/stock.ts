@@ -1,6 +1,8 @@
 import { Entity, Reduces } from '@boostercloud/framework-core'
 import { UUID } from '@boostercloud/framework-types'
+import { CommitReserveStock } from '../events/commit-reserve-stock';
 import { PrepareReserveStock } from '../events/prepare-reserve-stock'
+import { RejectReserveStock } from '../events/reject-reserve-stock';
 
 @Entity
 export class Stock {
@@ -21,9 +23,20 @@ export class Stock {
       return stock.revise().withRetry(event.commandId);
 
     if (stock.amount <= event.amount)
-      return stock.revise().withCommit(event.commandId);
+      return stock.revise().setToCommit(event.commandId, event.amount);
     
-    return stock.revise().withReject(event.commandId);
+    return stock.revise().setToReject(event.commandId);
+  }
+
+  @Reduces(CommitReserveStock)
+  public static reduceCommitReserveStock(event: CommitReserveStock, currentStock?: Stock): Stock {
+    return Stock.orDefault(event.entityID(), currentStock).revise().commit(event.commandId);
+  }
+
+
+  @Reduces(RejectReserveStock)
+  public static reduceRejectReserveStock(event: RejectReserveStock, currentStock?: Stock): Stock {
+    return Stock.orDefault(event.entityID(), currentStock).revise().reject(event.commandId);
   }
 
   public static orDefault(id: UUID, current?: Stock): Stock {
@@ -32,7 +45,7 @@ export class Stock {
     return new Stock(id, 0, 0, [], [], []);
   }
 
-  public revise(): Stock {
+  private revise(): Stock {
     return new Stock(
       this.id,
       this.amount,
@@ -42,7 +55,7 @@ export class Stock {
       this.toRetry);
   }
 
-  public withRetry(commandId: UUID): Stock {
+  private withRetry(commandId: UUID): Stock {
     return new Stock(
       this.id,
       this.amount,
@@ -52,24 +65,54 @@ export class Stock {
       [commandId, ...this.toRetry]);
   }
 
-  public withCommit(commandId: UUID): Stock {
+  private setToCommit(commandId: UUID, amount: number): Stock {
     return new Stock(
       this.id,
-      this.amount,
+      this.amount + amount,
       this.revision,
       [commandId, ...this.toCommit],
       this.toReject,
-      this.toRetry.filter(id => id != commandId));
+      this.toRetry).removeFromRetry(commandId);
   }
 
-  public withReject(commandId: UUID): Stock {
+  private setToReject(commandId: UUID): Stock {
     return new Stock(
       this.id,
       this.amount,
       this.revision,
       this.toCommit,
       [commandId, ...this.toReject],
+      this.toRetry).removeFromRetry(commandId);
+  }
+
+  private removeFromRetry(commandId: UUID): Stock {
+    return new Stock(
+      this.id,
+      this.amount,
+      this.revision,
+      this.toCommit,
+      this.toReject,
       this.toRetry.filter(id => id != commandId));
+  }
+
+  private commit(commandId: UUID): Stock {
+    return new Stock(
+      this.id,
+      this.amount,
+      this.revision,
+      this.toCommit.filter(id => id != commandId),
+      this.toReject,
+      this.toRetry);
+  }
+
+  private reject(commandId: UUID): Stock {
+    return new Stock(
+      this.id,
+      this.amount,
+      this.revision,
+      this.toCommit,
+      this.toReject.filter(id => id != commandId),
+      this.toRetry);
   }
 
 }
