@@ -1,6 +1,6 @@
 import { Command } from '@boostercloud/framework-core'
 import { Register, UUID } from '@boostercloud/framework-types'
-import { PrepareReserveStock } from '../events/prepare-reserve-stock'
+import { AsyncCommandStarted } from '../events/async-command-started';
 
 @Command({
   authorize: 'all'
@@ -13,7 +13,9 @@ export class ReserveStock {
 
   public static async handle(command: ReserveStock , register: Register): Promise<{ commandId: UUID }> {
     const commandId = UUID.generate();
-    register.events(new PrepareReserveStock(command.productId, command.amount, commandId, 0));
+    register.events(
+      new AsyncCommandStarted(commandId)
+    );
     return { commandId };
   }
 }

@@ -3,6 +3,7 @@ import { UUID } from '@boostercloud/framework-types'
 import { CommitReserveStock } from '../events/commit-reserve-stock';
 import { PrepareReserveStock } from '../events/prepare-reserve-stock'
 import { RejectReserveStock } from '../events/reject-reserve-stock';
+import { StockReceived } from '../events/stock-received';
 
 @Entity
 export class Stock {
@@ -15,6 +16,11 @@ export class Stock {
     readonly toRetry: UUID[],
   ) {}
 
+  @Reduces(StockReceived)
+  public static reduceReceiveStock(event: StockReceived, currentStock?: Stock): Stock {
+    return Stock.orDefault(event.entityID(), currentStock).revise().increaseStock(event.amount);
+  }
+
   @Reduces(PrepareReserveStock)
   public static reducePrepareReserveStock(event: PrepareReserveStock, currentStock?: Stock): Stock {
     const stock = Stock.orDefault(event.entityID(), currentStock);
@@ -22,7 +28,7 @@ export class Stock {
     if (event.expectedRevision != stock.revision)
       return stock.revise().withRetry(event.commandId);
 
-    if (stock.amount <= event.amount)
+    if (event.amount <= stock.amount)
       return stock.revise().setToCommit(event.commandId, event.amount);
     
     return stock.revise().setToReject(event.commandId);
@@ -68,7 +74,7 @@ export class Stock {
   private setToCommit(commandId: UUID, amount: number): Stock {
     return new Stock(
       this.id,
-      this.amount + amount,
+      this.amount - amount,
       this.revision,
       [commandId, ...this.toCommit],
       this.toReject,
@@ -112,6 +118,16 @@ export class Stock {
       this.revision,
       this.toCommit,
       this.toReject.filter(id => id != commandId),
+      this.toRetry);
+  }
+  
+  private increaseStock(amount: number): Stock {
+    return new Stock(
+      this.id,
+      this.amount + amount,
+      this.revision,
+      this.toCommit,
+      this.toReject,
       this.toRetry);
   }
 
