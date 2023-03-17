@@ -5,16 +5,16 @@
   "author": "El chache",
   "dependencies": {
     "tslib": "^2.4.0",
-    "@boostercloud/framework-core": "^1.5.0",
-    "@boostercloud/framework-types": "^1.5.0",
-    "@boostercloud/framework-common-helpers": "^1.5.0",
-    "@boostercloud/framework-provider-aws": "^1.5.0"
+    "@boostercloud/framework-core": "^1.7.0",
+    "@boostercloud/framework-types": "^1.7.0",
+    "@boostercloud/framework-common-helpers": "^1.7.0",
+    "@boostercloud/framework-provider-aws": "^1.7.0"
   },
   "devDependencies": {
-    "@boostercloud/framework-provider-local": "^1.5.0",
-    "@boostercloud/framework-provider-local-infrastructure": "^1.5.0",
-    "@boostercloud/metadata-booster": "^1.5.0",
-    "@boostercloud/framework-provider-aws-infrastructure": "^1.5.0",
+    "@boostercloud/framework-provider-local": "^1.7.0",
+    "@boostercloud/framework-provider-local-infrastructure": "^1.7.0",
+    "@boostercloud/metadata-booster": "^1.7.0",
+    "@boostercloud/framework-provider-aws-infrastructure": "^1.7.0",
     "rimraf": "^3.0.1",
     "@typescript-eslint/eslint-plugin": "4.22.1",
     "@typescript-eslint/parser": "4.22.1",
