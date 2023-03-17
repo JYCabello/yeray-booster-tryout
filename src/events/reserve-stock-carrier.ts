@@ -5,7 +5,6 @@ import { ReserveStockData } from '../commands/reserve-stock'
 @Event
 export class ReserveStockCarrier {
   public constructor(
-    readonly commandId: UUID,
     readonly data: ReserveStockData,
   ) {}
 

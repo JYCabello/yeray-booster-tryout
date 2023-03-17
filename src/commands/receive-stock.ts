@@ -1,5 +1,6 @@
 import { Command } from '@boostercloud/framework-core'
 import { Register, UUID } from '@boostercloud/framework-types'
+import { StockReceived } from '../events/stock-received';
 
 @Command({
   authorize: 'all'
@@ -11,6 +12,6 @@ export class ReceiveStock {
   ) {}
 
   public static async handle(command: ReceiveStock , register: Register): Promise<void> {
-    register.events( /* YOUR EVENT HERE */)
+    register.events(new StockReceived(command.productId, command.amount));
   }
 }
