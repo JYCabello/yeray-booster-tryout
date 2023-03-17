@@ -2,10 +2,10 @@ import { Event } from '@boostercloud/framework-core'
 import { UUID } from '@boostercloud/framework-types'
 
 @Event
-export class RejectReserveStock {
+export class StockReserved {
   public constructor(
     readonly productId: UUID,
-    readonly commandId: UUID,
+    readonly amount: number,
   ) {}
 
   public entityID(): UUID {
