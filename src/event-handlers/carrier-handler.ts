@@ -11,16 +11,16 @@ import { StockReserved } from '../events/stock-reserved';
 export class CarrierHandler {
   public static async handle(event: ReserveStockCarrier, register: Register): Promise<void> {
     const entity = await Booster.entity(Stock, event.entityID()) as Stock;
-    if (entity.accepted.some(a => a.commandId === event.data.commandId)) {
+    if (entity.accepted.some(a => a.commandId === event.commandId)) {
       register.events(
-        new StockReserved(event.entityID(), event.data.amount, event.data.commandId),
-        new CommandAccepted(event.data.commandId)
+        new StockReserved(event.entityID(), event.data.amount, event.commandId),
+        new CommandAccepted(event.commandId)
       );
     }
-    if (entity.rejected.some(a => a.commandId === event.data.commandId)) {
+    if (entity.rejected.some(a => a.commandId === event.commandId)) {
       register.events(
-        new StockReservationRejected(event.entityID(), event.data.amount, event.data.commandId),
-        new CommandRejected(event.data.commandId)
+        new StockReservationRejected(event.entityID(), event.data.amount, event.commandId),
+        new CommandRejected(event.commandId)
       );
     }
   }

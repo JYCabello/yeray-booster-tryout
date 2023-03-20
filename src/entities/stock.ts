@@ -12,13 +12,13 @@ export class Stock {
     public readonly id: UUID,
     readonly amount: number,
     readonly accepted: StockReserved[],
-    readonly rejected: { commandId: UUID }[],
+    readonly rejected: StockReservationRejected[],
   ) {}
 
   @Reduces(ReserveStockCarrier)
   public static reduceReserveStockCarrier(event: ReserveStockCarrier, currentStock?: Stock): Stock {
     const current = Stock.defaulted(event.entityID(), currentStock);
-    const projected = ReserveStock.decide(current, event.data);
+    const projected = ReserveStock.decide(current, event);
     switch (projected.type) {
       case "accepted":
         return new Stock(
