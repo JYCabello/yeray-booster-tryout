@@ -66,7 +66,7 @@ export class Stock {
   }
 
   public static defaulted(id: UUID, current?: Stock): Stock {
-    return current ? current : new Stock(id, 0, [], []);
+    return current || new Stock(id, 0, [], []);
   }
 
 }
