@@ -10,3 +10,11 @@ Booster.configure('production', (config: BoosterConfig): void => {
   config.appName = 'yeray-booster-tryout'
   config.providerPackage = '@boostercloud/framework-provider-aws'
 })
+Booster.configure('aws', (config: BoosterConfig): void => {
+  config.appName = 'yeray-booster-tryout'
+  config.providerPackage = '@boostercloud/framework-provider-aws'
+})
+Booster.configure('azure', (config: BoosterConfig): void => {
+  config.appName = 'yeray-booster-tryout'
+  config.providerPackage = '@boostercloud/framework-provider-azure'
+})

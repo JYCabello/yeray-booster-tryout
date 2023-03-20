@@ -11,3 +11,6 @@ coverage
 .booster
 errors.log
 .deploy/*
+cdktf.out/*
+cdktf.json
+functionApp.zip
