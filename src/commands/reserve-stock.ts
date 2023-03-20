@@ -1,7 +1,7 @@
 import { Command } from '@boostercloud/framework-core'
 import { Register, UUID } from '@boostercloud/framework-types'
 import { Stock } from '../entities/stock'
-import { CommandCarrier } from '../events/command-carrier';
+import { ReserveStockCarrier } from '../events/reserve-stock-carrier';
 import { StockReservationRejected } from '../events/stock-reservation-rejected';
 import { StockReserved } from '../events/stock-reserved'
 
@@ -20,11 +20,11 @@ export class ReserveStock {
     return { commandId: data.commandId };
   }
 
-  public static async fetch(command: ReserveStock, register: Register): Promise<CommandCarrier<ReserveStockData>> {
-    return { commandId: UUID.generate(), data: { amount: command.amount, productId: command.productId } };
+  public static async fetch(command: ReserveStock, register: Register): Promise<ReserveStockCarrier> {
+    return new ReserveStockCarrier({ amount: command.amount, productId: command.productId }, UUID.generate());
   }
 
-  public static decide(stock: Stock, carrier: CommandCarrier<ReserveStockData>): Decision<StockReserved, StockReservationRejected> {
+  public static decide(stock: Stock, carrier: ReserveStockCarrier): Decision<StockReserved, StockReservationRejected> {
     return carrier.data.amount <= stock.amount
       ? { type: "accepted",
           event:
