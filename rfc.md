@@ -55,17 +55,21 @@ The issue with this is that it is perfectly possible (and happens often) that a 
 
 ```mermaid
 sequenceDiagram
+  autonumber
   Reserve 6 units ->> Entity: Request current state
   Reserve 5 units ->> Entity: Request current state
   Entity ->> Reserve 6 units: Stock available: 8
   Entity ->> Reserve 5 units: Stock available: 8
-  Reserve 6 units ->> Reserve 6 units: 6 <= 8
-  Reserve 5 units ->> Reserve 5 units: 5 <= 8
+  Note left of Reserve 6 units: 6 <= 8, can reserve
+  Note right of Reserve 5 units: 5 <= 8, can reserve
+  Reserve 5 units ->> Reserve 5 units: A bit of latency, since the 6 units one started first
   Reserve 6 units ->> Stream: Stock reserved: 6
   Stream ->> Entity: Stock reserved: 6
-  Entity ->> Entity: New stock available: 8 - 6 = 2
+  Note right of Entity: New stock available: 8 - 6 = 2
   Reserve 5 units ->> Stream: Stock reserved: 5
   Stream ->> Entity: Stock reserved: 5
-  Entity ->> Entity: New stock available: 2 - 6 = -4
+  rect rgb(120, 0, 0)
+    Note right of Entity: New stock available: 2 - 6 = -4
+  end
 ```
 
