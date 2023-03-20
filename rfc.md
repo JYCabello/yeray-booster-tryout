@@ -59,8 +59,8 @@ sequenceDiagram
   Reserve 6 units ->> Entity: Request current state
   Reserve 5 units ->> Entity: Request current state
   Entity ->> Reserve 6 units: Stock available: 8
+  Note right of Reserve 6 units: 6 <= 8, can reserve
   Entity ->> Reserve 5 units: Stock available: 8
-  Note left of Reserve 6 units: 6 <= 8, can reserve
   Note right of Reserve 5 units: 5 <= 8, can reserve
   Reserve 5 units ->> Reserve 5 units: A bit of latency, since the 6 units one started first
   Reserve 6 units ->> Stream: Stock reserved: 6
