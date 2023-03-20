@@ -45,7 +45,7 @@ export class Stock {
     return new Stock(stock.id, stock.amount - event.amount);
   }
 
-  public static defaulted(id: UUID, current?: Stock): Stock {
+  public static orDefault(id: UUID, current?: Stock): Stock {
     return current || new Stock(id, 0);
   }
 }
@@ -69,7 +69,7 @@ sequenceDiagram
   Reserve 5 units ->> Stream: Stock reserved: 5
   Stream ->> Entity: Stock reserved: 5
   rect rgb(120, 0, 0)
-    Note right of Entity: New stock available: 2 - 6 = -4<br/>Panic breaks in the warehouse.
+    Note right of Entity: New stock available: 2 - 6 = -4<br/>Panic breaks in the warehouse
   end
 ```
 
