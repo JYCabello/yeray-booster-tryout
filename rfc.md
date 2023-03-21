@@ -1,8 +1,9 @@
 # Concurrency Aware Command Abstraction
 ## The problem
-When we receive a command it is possible to request the entity in the handler, make a decision based on that information and emit the subsequent event.
+When a command is received it is possible to request the entity in the handler, make a decision based on that information and emit the resulting event, except it is not guaranteed that the emitted event will be inserted in a stream that is still consistent with the decision made.
 
-At the moment of retrieving stock in an inventory management application, it should be possible to verify that there is enought units of the product available.
+### Example
+At the moment of retrieving stock in an inventory management application, it should be possible to verify that there is enough units of the product available.
 
 ```ts
 @Command({
@@ -51,7 +52,7 @@ export class Stock {
 }
 ```
 
-The issue with this is that it is perfectly possible (and happens often) that a second consumer attempts the same command in the time the first takes to make the decision and insert the event into the stream.
+The issue with this, is that it is perfectly possible (and often happens) that a second consumer attempts the same command in the time the first takes to make the decision and insert its event into the stream, rendering the decision made by the second one inconsitent.
 
 ```mermaid
 sequenceDiagram
@@ -69,7 +70,81 @@ sequenceDiagram
   Reserve 5 units ->> Stream: Stock reserved: 5
   Stream ->> Entity: Stock reserved: 5
   rect rgb(120, 0, 0)
-    Note right of Entity: New stock available: 2 - 6 = -4<br/>Panic breaks in the warehouse
+    Note right of Entity: New stock available: 2 - 5 = -3<br/>Panic breaks in the warehouse
   end
 ```
 
+### The resulting diagram
+```mermaid
+stateDiagram-v2
+  state "Read Model" as rm
+  state "Command Handler" as ch
+  state "Prepare Event" as pe
+  state "Entity" as ent
+  state "Entity" as ent2
+  state "Entity" as ent3
+  state "Prepare Handler" as ph
+  state accepting_command <<choice>>
+  state processing_accepted_event <<choice>>
+  state processing_rejected_event <<choice>>
+  state "Entity after accepting" as eaa
+  state "Entity that accepted" as eta
+  state "Entity that rejected" as etr
+  state "Entity after rejecting" as ear
+  state "Command Accepted" as ca
+  state "Command Rejected" as cmdrjct
+  state "Accept" as ma
+  state "Reject" as mr
+  state "Meta Event" as me
+  state "Command Result" as cmdrslt
+  state "Command Result" as cmdrsltrm
+  state "Accept Handler" as ah
+  state "Reject Handler" as rh
+
+  classDef event fill:#de7316
+  classDef metaEvent fill:#a8a114
+  classDef handler fill:#16cade,color:black
+  classDef entity fill:black,color:white
+  classDef readModel fill:#14a834
+
+  [*] --> ch
+  Event
+  Handler
+  Entity
+  rm
+  ma
+  mr
+  me
+  ch --> pe: Returns Command id\nto the consumer
+  pe --> Decision: All data needed\nto make a decision
+  pe --> ph
+  state Decision {
+    ent --> accepting_command
+    accepting_command --> Accepted: Condition met
+    accepting_command --> Rejected: Condition no met
+    Accepted --> eaa: Stores Accepted event \nand Command id
+    Rejected --> ear: Stores Rejected event \nand Command id
+  }
+  Decision --> ph
+  ph --> processing_accepted_event: Accepted
+  ph --> processing_rejected_event: Rejected
+  processing_accepted_event --> ma:Carries\nAccepted event
+  processing_accepted_event --> ca
+  processing_rejected_event --> cmdrjct
+  processing_rejected_event --> mr:Carries\nRejected event
+  ca --> cmdrslt
+  cmdrjct --> cmdrslt
+  cmdrslt --> cmdrsltrm
+  ma --> ah:For any possible\ndeveloper defined\nhandler
+  ma --> eta
+  mr --> rh:For any possible\ndeveloper defined\nhandler
+  mr --> etr
+  etr --> ent2: Removes Event and\nCommand id from\nrejected.
+  eta --> ent3: Removes Event and\nCommand id from\naccepted.
+
+  class Accepted, Rejected, pe, Event, ca, cmdrjct event
+  class ch, ph, Handler, ah, rh handler
+  class ent, Entity, eaa, ear, cmdrslt, eta, etr, ent2, ent3 entity
+  class rm, cmdrsltrm readModel
+  class mr, ma, me metaEvent
+```
