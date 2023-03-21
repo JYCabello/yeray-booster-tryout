@@ -1,0 +1,1 @@
+{"rule":"EN_A_VS_AN","sentence":"^\\QEmit an \\E(?:Dummy|Ina|Jimmy-)[0-9]+\\Q event that carries either of the events.\\E$"}
