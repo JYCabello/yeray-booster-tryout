@@ -234,7 +234,7 @@ stateDiagram-v2
   classDef entity fill:black,color:white
   classDef readModel fill:#14a834
 
-  [*] --> ch
+  [*] --> ch: Returns Command id\nto the consumer
   Event
   Handler
   Entity
@@ -242,8 +242,8 @@ stateDiagram-v2
   ma
   mr
   me
-  ch --> pe: Returns Command id\nto the consumer
-  pe --> decision: All data needed\nto make a decision
+  ch --> pe: Carries all data needed\nto make a decision
+  pe --> decision
   pe --> ph
   state decision {
     ent --> accepting_command
@@ -255,13 +255,13 @@ stateDiagram-v2
   decision --> ph
   ph --> processing_accepted_event: Accepted
   ph --> processing_rejected_event: Rejected
-  processing_accepted_event --> ma:Carries\nAccepted event
+  processing_accepted_event --> ma: Carries\nAccepted\nEvent
   processing_accepted_event --> ca
   processing_rejected_event --> cmdrjct
-  processing_rejected_event --> mr:Carries\nRejected event
+  processing_rejected_event --> mr: Carries\nRejected\nEvent
   ca --> cmdrslt
   cmdrjct --> cmdrslt
-  cmdrslt --> cmdrsltrm:This allows the consumer to\n follow up on the operation.
+  cmdrslt --> cmdrsltrm: This allows the consumer to\n follow up on the operation.
   ma --> eha
   eha --> ah:For developer\ndefined handlers
   ma --> eta
