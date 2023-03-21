@@ -52,7 +52,7 @@ export class Stock {
 }
 ```
 
-The issue with this, is that it is perfectly possible (and often happens) that a second consumer attempts the same command in the time the first takes to make the decision and insert its event into the stream, rendering the decision made by the second one inconsitent.
+The issue with this, is that it is perfectly possible (and often happens) that a second consumer attempts the same command in the time the first takes to make the decision and insert its event into the stream, rendering the decision made by the second one inconsistent.
 
 ```mermaid
 sequenceDiagram
@@ -73,6 +73,11 @@ sequenceDiagram
     Note right of Entity: New stock available: 2 - 5 = -3<br/>Panic breaks in the warehouse
   end
 ```
+
+## The proposed solution
+
+
+
 
 ### The resulting diagram
 ```mermaid
@@ -134,13 +139,13 @@ stateDiagram-v2
   processing_rejected_event --> mr:Carries\nRejected event
   ca --> cmdrslt
   cmdrjct --> cmdrslt
-  cmdrslt --> cmdrsltrm
+  cmdrslt --> cmdrsltrm:This Read Model will enable\nthe consumer to verify the\nresult of the operation.
   ma --> ah:For any possible\ndeveloper defined\nhandler
   ma --> eta
   mr --> rh:For any possible\ndeveloper defined\nhandler
   mr --> etr
-  etr --> ent2: Removes Event and\nCommand id from\nrejected.
-  eta --> ent3: Removes Event and\nCommand id from\naccepted.
+  etr --> ent2: Removes Event and\nCommand id from\nrejected.\n\nDoes NOT process\nit again.
+  eta --> ent3: Removes Event and\nCommand id from\naccepted.\n\nDoes NOT process\nit again.
 
   class Accepted, Rejected, pe, Event, ca, cmdrjct event
   class ch, ph, Handler, ah, rh handler
