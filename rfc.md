@@ -84,9 +84,9 @@ Since optimistic locking is usually the easier to maintain and the less error-pr
 The non-locking solution, showed a significant smaller resource footprint, a not-so-complex implementation, compatible with the current state of affairs, and significantly more performant.
 
 ## How the solution would look
-If we had the solution already, its documentation would look like this.
+If we had the solution already, its documentation would look like this:
 ### Concurrency Aware Commands
-There are cases where we want absolute certainty that.
+There are cases where absolute certainty that the event being emitted is consistent with the state of the system is required. One case would be making sure that a product only be reserved when there's enough stock. Lacking that certainty, two users could each claim a reservation over the last unit of a product. For this, we can use a `Concurrency Aware Command`.
 
 
 ### The resulting diagram
