@@ -86,7 +86,7 @@ The non-locking solution, showed a significant smaller resource footprint, a not
 ## How the solution would look
 If we had the solution already, its documentation would look like this.
 ### Concurrency Aware Commands
-
+There are cases where we want absolute certainty that.
 
 
 ### The resulting diagram
@@ -115,6 +115,7 @@ stateDiagram-v2
   state "Command Result" as cmdrsltrm
   state "Accept Handler" as ah
   state "Reject Handler" as rh
+  state "Decision (atomic, pure operation)" as decision
 
   classDef event fill:#de7316
   classDef metaEvent fill:#a8a114
@@ -131,16 +132,16 @@ stateDiagram-v2
   mr
   me
   ch --> pe: Returns Command id\nto the consumer
-  pe --> Decision: All data needed\nto make a decision
+  pe --> decision: All data needed\nto make a decision
   pe --> ph
-  state Decision {
+  state decision {
     ent --> accepting_command
     accepting_command --> Accepted: Condition met
     accepting_command --> Rejected: Condition no met
     Accepted --> eaa: Stores Accepted event \nand Command id
     Rejected --> ear: Stores Rejected event \nand Command id
   }
-  Decision --> ph
+  decision --> ph
   ph --> processing_accepted_event: Accepted
   ph --> processing_rejected_event: Rejected
   processing_accepted_event --> ma:Carries\nAccepted event
