@@ -88,8 +88,117 @@ If we had the solution already, its documentation would look like this:
 ### Concurrency Aware Commands
 There are cases where absolute certainty that the event being emitted is consistent with the state of the system is required. One case would be making sure that a product only be reserved when there's enough stock. Lacking that certainty, two users could each claim a reservation over the last unit of a product. For this, we can use a `Concurrency Aware Command`.
 
+```ts
+@Command({
+  authorize: 'all'
+})
+export class ReserveStock {
+  public constructor(
+    readonly productId: UUID,
+    readonly amount: number,
+  ) {}
 
-### The resulting diagram
+  public static async fetch(
+    command: ReserveStock,
+    requestContext: RequestContext
+  ): Promise<ReserveStockData> {
+    return { amount: command.amount, productId: command.productId };
+  }
+
+  public static decide(
+    stock: Stock,
+    carrier: ReserveStockData
+  ): Decision<StockReserved, StockReservationRejected> {
+    return carrier.data.amount <= stock.amount
+      ? { type: "accepted",
+          event:
+            new StockReserved(
+              carrier.data.productId,
+              carrier.data.amount,
+              carrier.commandId) }
+      : { type: "rejected",
+          event:
+            new StockReservationRejected(
+              carrier.data.productId,
+              carrier.data.amount,
+              carrier.commandId) };
+  }
+
+  public entityID(): UUID {
+    return this.productId;
+  }
+}
+
+type ReserveStockData = { amount: number, productId: UUID };
+```
+
+The `fetch` function will request any information needed from the request context or any third parties, and produce all the information needed to decide whether to accept or reject the command. Notice that the `fetch` function receives a `RequestContext` instead of the standard `Register`, this is because the decision as to which event to send has not been made yet.
+
+The `decide` function will then receive that information and will, as its name implies, accept or reject the command, the rejection event is optional and can be typed as `void`.
+
+The `Decision` type looks like this:
+```ts
+export type Decision<Evt, RejEvt> =
+  { type: "accepted", event: Evt } |
+  { type: "rejected", event: RejEvt }
+```
+Event handlers and entities for this kind of commands and events look exactly the same.
+
+These commands are meant to act on a single entity, so you need to implement the `entityID` member. Also, the emitted events do not need such member, it is recommended, for the sake of convenience, to implement it, though.
+
+The endpoint for the command will always return an object in the shape of `{ commandId: UUID }`, with this identifier, we can query the `AsyncCommandState` endpoint:
+```graphql
+query {
+  AsyncCommandState(id: "ad920755-f593-46e8-9960-ba4f606893f3") {
+    state
+  }
+}
+```
+
+Which will return:
+```json
+{
+  "data": {
+    "AsyncCommandState": null
+  }
+}
+```
+Until the command has been processed, returning then:
+```json
+{
+  "data": {
+    "AsyncCommandState": {
+      "state": "accepted"
+    }
+  }
+}
+```
+
+## Notes on the solution API
+Two important parts are not represented in the documentation:
+1. The way to define the "data", "success event" and "rejection event".
+1. How would the CLI look like.
+
+Requesting suggestions on this part.
+
+## The inner works of the solution
+The command handler will run the fetch function, and insert that data in a `meta event` called `Prepare` that carries the data needed to make the decision and the identifier of the command.
+
+The runtime will then intercept the reduction of that event, which will not be visible to the consumer, and will call the `decide` function on the handler, reducing the resulting event on the entity directly. After that, it will insert the event, together with the command identifier in one of two collections that will be on the metadata of the entity, the `rejected` or `accepted` one, depending on the decision.
+
+An internal handler, not visible for the consumer, will receive the `Prepare` event and will, depending on whether the entity has the command in the `Accept` or in the `Reject` collection:
+- Emit a `Command Accepted` or `Command Rejected` event.
+- Emit an `Echo` event that carries either of the events.
+
+### The Echo event
+The entity, then, will reduce the `Echo` event by removing the contained event from the corresponding internal collection, ignoring the actual event, because it was already reduced.
+
+Another handler, the `Echo` handler will then trigger any handlers defined for the Acceptance or Rejection events.
+
+### The Command Accepted/Rejected event
+These events exist only to update the `Command Result` entity, which will project into its own read model `AsyncCommandState`, which the consumer can use to get the result of the operation.
+
+### A diagram of the solution
 ```mermaid
 stateDiagram-v2
   state "Read Model" as rm
@@ -108,14 +217,16 @@ stateDiagram-v2
   state "Entity after rejecting" as ear
   state "Command Accepted" as ca
   state "Command Rejected" as cmdrjct
-  state "Accept" as ma
-  state "Reject" as mr
+  state "Echo" as ma
+  state "Echo" as mr
   state "Meta Event" as me
   state "Command Result" as cmdrslt
   state "Command Result" as cmdrsltrm
   state "Accept Handler" as ah
   state "Reject Handler" as rh
   state "Decision (atomic, pure operation)" as decision
+  state "Echo Handler" as eha
+  state "Echo Handler" as ehr
 
   classDef event fill:#de7316
   classDef metaEvent fill:#a8a114
@@ -150,17 +261,20 @@ stateDiagram-v2
   processing_rejected_event --> mr:Carries\nRejected event
   ca --> cmdrslt
   cmdrjct --> cmdrslt
-  cmdrslt --> cmdrsltrm:This Read Model will enable\nthe consumer to verify the\nresult of the operation.
-  ma --> ah:For any possible\ndeveloper defined\nhandler
+  cmdrslt --> cmdrsltrm:This allows the consumer to\n follow up on the operation.
+  ma --> eha
+  eha --> ah:For developer\ndefined handlers
   ma --> eta
-  mr --> rh:For any possible\ndeveloper defined\nhandler
+  mr --> ehr
+  ehr --> rh:For developer\ndefined handlers
   mr --> etr
   etr --> ent2: Removes Event and\nCommand id from\nrejected.\n\nDoes NOT process\nit again.
   eta --> ent3: Removes Event and\nCommand id from\naccepted.\n\nDoes NOT process\nit again.
 
-  class Accepted, Rejected, pe, Event, ca, cmdrjct event
-  class ch, ph, Handler, ah, rh handler
+  class Accepted, Rejected, Event, ca, cmdrjct event
+  class ch, ph, Handler, ah, rh, eha, ehr handler
   class ent, Entity, eaa, ear, cmdrslt, eta, etr, ent2, ent3 entity
   class rm, cmdrsltrm readModel
-  class mr, ma, me metaEvent
+  class mr, ma, me, pe metaEvent
 ```
+
