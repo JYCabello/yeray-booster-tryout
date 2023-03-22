@@ -320,7 +320,7 @@ CONSTANTS Amounts, null
 
 (*--fair algorithm concurrency_aware_command variables
   possibleCommands =
-    [ amount: 2..(Amounts + 1),
+    [ amount: {1, Amounts \div 2},
       state : {"not sent"} ],
   (*************************************************************************)
   (* ASSUMPTION: The update of an entity from the stream and the update of *)
