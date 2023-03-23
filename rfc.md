@@ -313,14 +313,14 @@ CONSTANTS Amounts, null
 (***************************************************************************)
 
 (***************************************************************************)
-(* To verify that no inconsisten event, a warehouse with stock business    *)
-(* model will be used, as it's easy to see that stock going negative or    *)
-(* commands not receiving a response should never happen.                  *)
+(* To verify that no inconsistent event is ever sent, a warehouse with     *)
+(* stock business model will be used, as it's easy to see that stock going *)
+(* negative or commands not receiving a response should never happen.      *)
 (***************************************************************************)
 
 (*--fair algorithm concurrency_aware_command variables
   possibleCommands =
-    [ amount: {1, Amounts \div 2},
+    [ amount: {1, Amounts \div 2, Amounts * 2, Amounts * 3},
       state : {"not sent"} ],
   (*************************************************************************)
   (* ASSUMPTION: The update of an entity from the stream and the update of *)
@@ -333,7 +333,7 @@ CONSTANTS Amounts, null
   commands \in [ 1..Amounts -> possibleCommands ],
   entity =
     (* This field is the actual entity *)
-    [ amount   |-> Amounts * 2,
+    [ amount   |-> Amounts * 3,
       (* These two sets are part of the meta entity *)
       accepted |-> {},
       rejected |-> {},
@@ -347,10 +347,11 @@ CONSTANTS Amounts, null
       revision |-> 0 ],
   events = <<>>,
   (*************************************************************************)
-  (* ASSUMPTION: The handler eventually processes every event, not         *)
-  (* necessarily in order.                                                 *)
+  (* ASSUMPTION: The handler eventually processes every event in order.    *)
+  (* This revision number models that mechanism, which is already in       *)
+  (* Booster.                                                              *)
   (*************************************************************************)
-  handledEvents = {};
+  handlerRevision = 0;
 
 define
 NoOverdraft == 0 <= entity.amount
@@ -449,7 +450,7 @@ macro ProcessCommandRejectedHandler() begin
   commands[evt.data.commandId].state := "rejected";
 end macro;
 
-process commandEmitter \in {"emtA", "emtB"}
+process commandEmitter \in {"emtA", "emtB", "emtC"}
 variable cID = -1;
 begin
 EmitterLoop:
@@ -463,15 +464,15 @@ EmitterLoop:
     (* a cross cutting concern that can be adressed separatedly.           *)
     (***********************************************************************)
     commands[cID].state := "reserved";
-      SendCommand:
-        events :=
-          Append(
-            events,
-            [ data |->
-              [ commandId |-> cID,
-                amount    |-> commands[cID].amount,
-                event     |-> null ],
-              type |-> "prepare" ]);
+    SendCommand:
+      events :=
+        Append(
+          events,
+          [ data |->
+            [ commandId |-> cID,
+              amount    |-> commands[cID].amount,
+              event     |-> null ],
+            type |-> "prepare" ]);
   end while;
 end process;
 
@@ -502,48 +503,39 @@ EntityLoop:
 end process;
 
 (***************************************************************************)
+(* ASSUMPTION: All events for a single entity are processed in series and  *)
+(* in order, so there is a single process for the handler.                 *)
+(*                                                                         *)
 (* For the sake of simplicity, all handlers are modelled as a single one   *)
 (* and forking the execution with conditionals on the type.                *)
 (***************************************************************************)
 
-process eventHandler \in {"ehA", "ehB", "ehB"}
-variable evt = null, evtIndex = 0;
+process eventHandler = "eh"
+variable evt = null;
 begin
 HandlerLoop:
   while ~AllCommandsAreConsumed do
     (***********************************************************************)
     (* This executes only if there are events to process.                  *)
     (***********************************************************************)
-    if \E ei \in DOMAIN events: \A pe \in handledEvents: pe /= ei then
-      (*********************************************************************)
-      (* This will test every possible order in processing the events.     *)
-      (*********************************************************************)
-      with ei \in DOMAIN events \ handledEvents do
-        (*******************************************************************)
-        (* Requesting the entity in an event handler forces the reduction  *)
-        (* of the entity, this await models that, the greater than or      *)
-        (* equal in the condition models the instance of thee handler      *)
-        (* receiving the event after subsequent events have been reduced   *)
-        (* by the entity.                                                  *)
-        (*******************************************************************)
-        await entity.revision >= ei;
-        evtIndex := ei;
-        evt := events[evtIndex];
-      end with;
-      (*********************************************************************)
-      (* ASSUMPTION: The handlers will not try to process an event twice   *)
-      (* in parallel, this double check models precisely that.             *)
-      (*********************************************************************)
-      if ~(evtIndex \in handledEvents) then
-        if evt.type = "prepare" then
-          ProcessPrepareHandler();
-        elsif evt.type = "command-accepted" then
-          ProcessCommandAcceptedHandler();
-        elsif evt.type = "command-rejected" then
-          ProcessCommandRejectedHandler();
-        end if;
-        handledEvents := handledEvents \cup {evtIndex}
+    if handlerRevision < Len(events) then
+      (*******************************************************************)
+      (* Requesting the entity in an event handler forces the reduction  *)
+      (* of the entity, this await models that, the greater than or      *)
+      (* equal in the condition models the instance of thee handler      *)
+      (* receiving the event after subsequent events have been reduced   *)
+      (* by the entity.                                                  *)
+      (*******************************************************************)
+      await handlerRevision < entity.revision;
+      evt := events[handlerRevision + 1];
+      if evt.type = "prepare" then
+        ProcessPrepareHandler();
+      elsif evt.type = "command-accepted" then
+        ProcessCommandAcceptedHandler();
+      elsif evt.type = "command-rejected" then
+        ProcessCommandRejectedHandler();
       end if;
+      handlerRevision := handlerRevision + 1;
     end if;
   end while;
 end process;
